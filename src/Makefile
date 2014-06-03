@@ -139,6 +139,18 @@ ifeq ($(ARCH),ppc-64)
 	bits = 64
 endif
 
+ifeq ($(ARCH),core-avx2)
+	arch = core-avx2
+	bits = 64
+	prefetch = yes
+	bsfq = yes
+	popcnt = yes
+	sse = yes
+	pext = yes
+	CXXFLAGS += -mavx -mavx2 -mfma $(EXTRACXXFLAGS)
+	LDFLAGS += $(EXTRALDFLAGS)
+endif
+
 
 ### ==========================================================================
 ### Section 3. Low-level configuration
@@ -148,7 +160,6 @@ endif
 
 CXXFLAGS += -Wall -Wcast-qual -fno-exceptions -fno-rtti $(EXTRACXXFLAGS)
 LDFLAGS += $(EXTRALDFLAGS)
-
 ifeq ($(COMP),)
 	COMP=gcc
 endif
@@ -340,6 +351,7 @@ help:
 	@echo "ppc-64                  > PPC 64-bit"
 	@echo "ppc-32                  > PPC 32-bit"
 	@echo "armv7                   > ARMv7 32-bit"
+	@echo "core-avx2               > Haswell- Architecture"
 	@echo "general-64              > unspecified 64-bit"
 	@echo "general-32              > unspecified 32-bit"
 	@echo ""
@@ -429,7 +441,7 @@ config-sanity:
 	@test "$(debug)" = "yes" || test "$(debug)" = "no"
 	@test "$(optimize)" = "yes" || test "$(optimize)" = "no"
 	@test "$(arch)" = "any" || test "$(arch)" = "x86_64" || test "$(arch)" = "i386" || \
-	 test "$(arch)" = "ppc64" || test "$(arch)" = "ppc" || test "$(arch)" = "armv7"
+	 test "$(arch)" = "ppc64" || test "$(arch)" = "ppc" || test "$(arch)" = "armv7" || test "$(arch)" = "core-avx2"
 	@test "$(os)" = "any"
 	@test "$(bits)" = "32" || test "$(bits)" = "64"
 	@test "$(prefetch)" = "yes" || test "$(prefetch)" = "no"
