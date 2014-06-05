@@ -243,7 +243,7 @@ ifeq ($(optimize),yes)
 		endif
 	endif
 		
-	ifeq ($arch),core-avx2)
+	ifeq ($(arch),core-avx2)
 		CXXFLAGS+= -march=core-avx2
 	endif
 	
