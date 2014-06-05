@@ -25,11 +25,11 @@
 #include <iostream>
 #include <sstream>
 
+#include "rkiss.h"
 #include "evaluate.h"
 #include "movegen.h"
 #include "movepick.h"
 #include "notation.h"
-#include "rkiss.h"
 #include "search.h"
 #include "timeman.h"
 #include "thread.h"
@@ -76,7 +76,7 @@ namespace {
     return (Depth) Reductions[PvNode][i][std::min(int(d) / ONE_PLY, 63)][std::min(mn, 63)];
   }
 
-  // Tempo bonus. Must be handled by search to preserve eval symmetry.
+  // Tempo bonus. Must be handles by search to preserve eval symmetry.
   const int Tempo = 17;
 
   size_t MultiPV, PVIdx;
@@ -163,11 +163,11 @@ static uint64_t perft(Position& pos, Depth depth) {
   CheckInfo ci(pos);
   const bool leaf = depth == 2 * ONE_PLY;
 
-  for (MoveList<LEGAL> it(pos); *it; ++it)
+  for (const ExtMove& ms : MoveList<LEGAL>(pos))
   {
-      pos.do_move(*it, st, ci, pos.gives_check(*it, ci));
+      pos.do_move(ms.move, st, ci, pos.gives_check(ms.move, ci));
       cnt += leaf ? MoveList<LEGAL>(pos).size() : ::perft(pos, depth - ONE_PLY);
-      pos.undo_move(*it);
+      pos.undo_move(ms.move);
   }
   return cnt;
 }
@@ -198,6 +198,7 @@ void Search::think() {
       goto finalize;
   }
 
+
   if (Options["Write Search Log"])
   {
       Log log(Options["Search Log Filename"]);
@@ -211,8 +212,8 @@ void Search::think() {
   }
 
   // Reset the threads, still sleeping: will wake up at split time
-  for (size_t i = 0; i < Threads.size(); ++i)
-      Threads[i]->maxPly = 0;
+  for (Thread* th : Threads)
+      th->maxPly = 0;
 
   Threads.timer->run = true;
   Threads.timer->notify_one(); // Wake up the recurring timer
@@ -304,8 +305,8 @@ namespace {
 
         // Save the last iteration's scores before first PV line is searched and
         // all the move scores except the (new) PV are set to -VALUE_INFINITE.
-        for (size_t i = 0; i < RootMoves.size(); ++i)
-            RootMoves[i].prevScore = RootMoves[i].score;
+        for (RootMove& rm : RootMoves)
+            rm.prevScore = rm.score;
 
         // MultiPV loop. We perform a full root search for each PV line
         for (PVIdx = 0; PVIdx < MultiPV && !Signals.stop; ++PVIdx)
@@ -460,7 +461,7 @@ namespace {
         splitPoint = ss->splitPoint;
         bestMove   = splitPoint->bestMove;
         bestValue  = splitPoint->bestValue;
-        tte = NULL;
+        tte = nullptr;
         ttMove = excludedMove = MOVE_NONE;
         ttValue = VALUE_NONE;
 
@@ -473,7 +474,7 @@ namespace {
     bestValue = -VALUE_INFINITE;
     ss->currentMove = ss->ttMove = (ss+1)->excludedMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
-    (ss+1)->skipNullMove = (ss+1)->nullChild = false; (ss+1)->reduction = DEPTH_ZERO;
+    (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
     (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
 
     // Used to send selDepth info to GUI
@@ -484,7 +485,7 @@ namespace {
     {
         // Step 2. Check for aborted search and immediate draw
         if (Signals.stop || pos.is_draw() || ss->ply > MAX_PLY)
-            return ss->ply > MAX_PLY && !inCheck ? evaluate(pos) + Tempo : DrawValue[pos.side_to_move()];
+            return ss->ply > MAX_PLY && !inCheck ? evaluate(pos) + Tempo: DrawValue[pos.side_to_move()];
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
         // would be at best mate_in(ss->ply+1), but if alpha is already bigger because
@@ -523,7 +524,7 @@ namespace {
 
         // If ttMove is quiet, update killers, history, counter move and followup move on TT hit
         if (ttValue >= beta && ttMove && !pos.capture_or_promotion(ttMove) && !inCheck)
-            update_stats(pos, ss, ttMove, depth, NULL, 0);
+            update_stats(pos, ss, ttMove, depth, nullptr, 0);
 
         return ttValue;
     }
@@ -548,7 +549,7 @@ namespace {
     }
     else
     {
-        eval = ss->staticEval = ss->nullChild ? -(ss-1)->staticEval + 2 * Tempo : evaluate(pos) + Tempo;
+        eval = ss->staticEval = ss->nullChild ? -(ss-1)->staticEval +2 * Tempo : evaluate(pos) + Tempo;
         TT.store(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval);
     }
 
@@ -870,11 +871,11 @@ moves_loop: // When in check and at SpNode search starts from here
               ss->reduction = std::max(DEPTH_ZERO, ss->reduction - ONE_PLY);
 
           // Decrease reduction for moves that escape a capture
-          if (   ss->reduction
-              && type_of(move) == NORMAL
-              && type_of(pos.piece_on(to_sq(move))) != PAWN
-              && pos.see(make_move(to_sq(move), from_sq(move))) < 0)
-              ss->reduction = std::max(DEPTH_ZERO, ss->reduction - ONE_PLY);
+
+          if (ss->reduction
+        	  && type_of(pos.piece_on(to_sq(move))) != PAWN
+        	  && pos.see(make_move(to_sq(move), from_sq(move))) < 0)
+        	  ss->reduction = std::max(DEPTH_ZERO, ss->reduction - ONE_PLY);
 
           Depth d = std::max(newDepth - ss->reduction, ONE_PLY);
           if (SpNode)
@@ -1066,7 +1067,7 @@ moves_loop: // When in check and at SpNode search starts from here
 
     // Check for an instant draw or if the maximum ply has been reached
     if (pos.is_draw() || ss->ply > MAX_PLY)
-        return ss->ply > MAX_PLY && !InCheck ? evaluate(pos) + Tempo : DrawValue[pos.side_to_move()];
+        return ss->ply > MAX_PLY && !InCheck ? evaluate(pos) + Tempo: DrawValue[pos.side_to_move()];
 
     // Decide whether or not to include checks: this fixes also the type of
     // TT entry depth that we are going to use. Note that in qsearch we use
@@ -1349,9 +1350,9 @@ moves_loop: // When in check and at SpNode search starts from here
     size_t uciPVSize = std::min((size_t)Options["MultiPV"], RootMoves.size());
     int selDepth = 0;
 
-    for (size_t i = 0; i < Threads.size(); ++i)
-        if (Threads[i]->maxPly > selDepth)
-            selDepth = Threads[i]->maxPly;
+    for (Thread* th : Threads)
+        if (th->maxPly > selDepth)
+            selDepth = th->maxPly;
 
     for (size_t i = 0; i < uciPVSize; ++i)
     {
@@ -1454,7 +1455,7 @@ void Thread::idle_loop() {
 
   // Pointer 'this_sp' is not null only if we are called from split(), and not
   // at the thread creation. This means we are the split point's master.
-  SplitPoint* this_sp = splitPointsSize ? activeSplitPoint : NULL;
+  SplitPoint* this_sp = splitPointsSize ? activeSplitPoint : nullptr;
 
   assert(!this_sp || (this_sp->masterThread == this && searching));
 
@@ -1471,23 +1472,18 @@ void Thread::idle_loop() {
           }
 
           // Grab the lock to avoid races with Thread::notify_one()
-          mutex.lock();
+          std::unique_lock<std::mutex> lk(mutex);
 
           // If we are master and all slaves have finished then exit idle_loop
           if (this_sp && this_sp->slavesMask.none())
-          {
-              mutex.unlock();
               break;
-          }
 
           // Do sleep after retesting sleep conditions under lock protection. In
           // particular we need to avoid a deadlock in case a master thread has,
           // in the meanwhile, allocated us and sent the notify_one() call before
           // we had the chance to grab the lock.
           if (!searching && !exit)
-              sleepCondition.wait(mutex);
-
-          mutex.unlock();
+              sleepCondition.wait(lk);
       }
 
       // If this thread has been assigned work, launch a search
@@ -1511,7 +1507,7 @@ void Thread::idle_loop() {
 
           sp->mutex.lock();
 
-          assert(activePosition == NULL);
+          assert(activePosition == nullptr);
 
           activePosition = &pos;
 
@@ -1530,7 +1526,7 @@ void Thread::idle_loop() {
           assert(searching);
 
           searching = false;
-          activePosition = NULL;
+          activePosition = nullptr;
           sp->slavesMask.reset(idx);
           sp->allSlavesSearching = false;
           sp->nodes += pos.nodes_searched();
@@ -1621,10 +1617,10 @@ void check_time() {
 
       // Loop across all split points and sum accumulated SplitPoint nodes plus
       // all the currently active positions nodes.
-      for (size_t i = 0; i < Threads.size(); ++i)
-          for (int j = 0; j < Threads[i]->splitPointsSize; ++j)
+      for (Thread* th : Threads)
+          for (int i = 0; i < th->splitPointsSize; ++i)
           {
-              SplitPoint& sp = Threads[i]->splitPoints[j];
+              SplitPoint& sp = th->splitPoints[i];
 
               sp.mutex.lock();
 
