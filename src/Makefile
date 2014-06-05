@@ -147,8 +147,7 @@ ifeq ($(ARCH),core-avx2)
 	popcnt = yes
 	sse = yes
 	pext = yes
-	CXXFLAGS += -mavx -mavx2 -mfma $(EXTRACXXFLAGS)
-	LDFLAGS += $(EXTRALDFLAGS)
+	CXXFLAGS += -mavx -mavx2 -mfma
 endif
 
 ### ==========================================================================
