@@ -39,8 +39,8 @@ PGOBENCH = ./$(EXE) bench 32 1 1 default time
 
 ### Object files
 OBJS = benchmark.o bitbase.o bitboard.o endgame.o evaluate.o main.o \
-	material.o misc.o movegen.o movepick.o notation.o pawns.o \
-	position.o search.o thread.o timeman.o tt.o uci.o ucioption.o
+	material.o misc.o movegen.o movepick.o notation.o pawns.o position.o \
+	search.o thread.o timeman.o tt.o uci.o ucioption.o
 
 ### ==========================================================================
 ### Section 2. High-level Configuration
@@ -148,9 +148,8 @@ ifeq ($(ARCH),core-avx2)
 	sse = yes
 	pext = yes
 	CXXFLAGS += -mavx -mavx2 -mfma $(EXTRACXXFLAGS)
-	LDFLAGS += $(EXTRALDFLAGS)
+	LDFLAGS += $(EXTRADFLAGS)
 endif
-
 
 ### ==========================================================================
 ### Section 3. Low-level configuration
@@ -158,8 +157,9 @@ endif
 
 ### 3.1 Selecting compiler (default = gcc)
 
-CXXFLAGS += -Wall -Wcast-qual -fno-exceptions -fno-rtti $(EXTRACXXFLAGS)
+CXXFLAGS += -Wcast-qual -fno-exceptions -fno-rtti -std=c++11 $(EXTRACXXFLAGS)
 LDFLAGS += $(EXTRALDFLAGS)
+
 ifeq ($(COMP),)
 	COMP=gcc
 endif
@@ -167,7 +167,8 @@ endif
 ifeq ($(COMP),gcc)
 	comp=gcc
 	CXX=g++
-	CXXFLAGS += -ansi -pedantic -Wno-long-long -Wextra -Wshadow
+	CXXFLAGS += -Wno-long-long -Wextra -Wshadow
+	LDFLAGS += -Wl,--no-as-needed
 endif
 
 ifeq ($(COMP),mingw)
@@ -186,7 +187,7 @@ endif
 ifeq ($(COMP),clang)
 	comp=clang
 	CXX=clang++
-	CXXFLAGS += -ansi -pedantic -Wno-long-long -Wextra -Wshadow
+	CXXFLAGS += -pedantic -Wno-long-long -Wextra -Wshadow
 endif
 
 ifeq ($(comp),icc)
@@ -351,9 +352,9 @@ help:
 	@echo "ppc-64                  > PPC 64-bit"
 	@echo "ppc-32                  > PPC 32-bit"
 	@echo "armv7                   > ARMv7 32-bit"
-	@echo "core-avx2               > Haswell- Architecture"
 	@echo "general-64              > unspecified 64-bit"
 	@echo "general-32              > unspecified 32-bit"
+	@echo "core-avx2               > x86 64-bit with avx2 support"
 	@echo ""
 	@echo "Supported compilers:"
 	@echo ""
@@ -441,7 +442,8 @@ config-sanity:
 	@test "$(debug)" = "yes" || test "$(debug)" = "no"
 	@test "$(optimize)" = "yes" || test "$(optimize)" = "no"
 	@test "$(arch)" = "any" || test "$(arch)" = "x86_64" || test "$(arch)" = "i386" || \
-	 test "$(arch)" = "ppc64" || test "$(arch)" = "ppc" || test "$(arch)" = "armv7" || test "$(arch)" = "core-avx2"
+	 test "$(arch)" = "ppc64" || test "$(arch)" = "ppc" || test "$(arch)" = "armv7" || \
+	 test "$(arch)" = "core-avx2"
 	@test "$(os)" = "any"
 	@test "$(bits)" = "32" || test "$(bits)" = "64"
 	@test "$(prefetch)" = "yes" || test "$(prefetch)" = "no"
