@@ -147,7 +147,6 @@ ifeq ($(ARCH),core-avx2)
 	popcnt = yes
 	sse = yes
 	pext = yes
-	CXXFLAGS += -mavx -mavx2 -mfma
 endif
 
 ### ==========================================================================
@@ -243,7 +242,11 @@ ifeq ($(optimize),yes)
 			CXXFLAGS += -fno-gcse -mthumb -march=armv7-a -mfloat-abi=softfp
 		endif
 	endif
-
+		
+	ifeq ($arch),core-avx2)
+		CXXFLAGS+= -march=core-avx2
+	endif
+	
 	ifeq ($(comp),mingw)
 		CXXFLAGS += -O3
 	endif
