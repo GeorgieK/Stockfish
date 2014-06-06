@@ -92,7 +92,7 @@ namespace {
   // Evaluation weights, indexed by evaluation term
   enum { Mobility, PawnStructure, PassedPawns, Space, KingSafety };
   const struct Weight { int mg, eg; } Weights[] = {
-		  {289, 344}, {233, 201}, {221, 273}, {46, 0}, {271, 0}, {307, 0}
+    {289, 344}, {233, 201}, {221, 273}, {46, 0}, {318, 0}
   };
 
   typedef Value V;
@@ -150,12 +150,11 @@ namespace {
     S(0, 0), S(0, 0), S(56, 70), S(56, 70), S(76, 99), S(86, 118)
   };
 
-  // Hanging[side to move] contains a bonus for each enemy hanging piece
-  const Score Hanging[2] = { S(23, 20) , S(35, 45) };
+  // Hanging contains a bonus for each enemy hanging piece
+  const Score Hanging = S(23, 20);
 
   #undef S
 
-  const Score Tempo            = make_score(24, 11);
   const Score RookOnPawn       = make_score(10, 28);
   const Score RookOpenFile     = make_score(43, 21);
   const Score RookSemiopenFile = make_score(19, 10);
@@ -203,6 +202,7 @@ namespace {
   Score apply_weight(Score v, const Weight& w) {
     return make_score(mg_value(v) * w.mg / 256, eg_value(v) * w.eg / 256);
   }
+
 
   // init_eval_info() initializes king bitboards for given color adding
   // pawn attacks. To be done at the beginning of the evaluation.
@@ -425,9 +425,7 @@ namespace {
                   | ei.attackedBy[Them][BISHOP] | ei.attackedBy[Them][ROOK]);
 
             if (b)
-                attackUnits +=  QueenContactCheck
-                              * popcount<Max15>(b)
-                              * (Them == pos.side_to_move() ? 2 : 1);
+                attackUnits +=  QueenContactCheck * popcount<Max15>(b);
         }
 
         // Analyse the enemy's safe rook contact checks. Firstly, find the
@@ -445,9 +443,7 @@ namespace {
                   | ei.attackedBy[Them][BISHOP] | ei.attackedBy[Them][QUEEN]);
 
             if (b)
-                attackUnits +=  RookContactCheck
-                              * popcount<Max15>(b)
-                              * (Them == pos.side_to_move() ? 2 : 1);
+                attackUnits +=  RookContactCheck * popcount<Max15>(b);
         }
 
         // Analyse the enemy's safe distance checks for sliders and knights
@@ -520,8 +516,7 @@ namespace {
 
         b = weakEnemies & ~ei.attackedBy[Them][ALL_PIECES];
         if (b)
-            score += more_than_one(b) ? Hanging[Us != pos.side_to_move()] * popcount<Max15>(b)
-                                      : Hanging[Us == pos.side_to_move()];
+            score += more_than_one(b) ? Hanging * popcount<Max15>(b) : Hanging;
     }
 
     if (Trace)
@@ -676,9 +671,9 @@ namespace {
     Thread* thisThread = pos.this_thread();
 
     // Initialize score by reading the incrementally updated scores included
-    // in the position object (material + piece square tables) and adding a
-    // Tempo bonus. Score is computed from the point of view of white.
-    score = pos.psq_score() + (pos.side_to_move() == WHITE ? Tempo : -Tempo);
+    // in the position object (material + piece square tables).
+    // Score is computed from the point of view of white.
+    score = pos.psq_score();
 
     // Probe the material hash table
     ei.mi = Material::probe(pos, thisThread->materialTable, thisThread->endgames);
@@ -830,7 +825,7 @@ namespace {
        << "                     |   MG    EG  |   MG    EG  |   MG    EG  \n"
        << "---------------------+-------------+-------------+-------------\n";
 
-    format_row(ss, "Material, PST, Tempo", PST);
+    format_row(ss, "Material, PST", PST);
     format_row(ss, "Material imbalance", IMBALANCE);
     format_row(ss, "Pawns", PAWN);
     format_row(ss, "Knights", KNIGHT);
@@ -860,7 +855,7 @@ namespace Eval {
   /// of the position always from the point of view of the side to move.
 
   Value evaluate(const Position& pos) {
-    return do_evaluate<false>(pos);
+    return do_evaluate<false>(pos) + Tempo;
   }
 
 
